@@ -1,0 +1,2 @@
+class WorkingTimeException(Exception):
+    pass
