@@ -1,4 +1,4 @@
-class WorkingTimeException(Exception):
+class WorkingTimeoutException(Exception):
     pass
 
 
@@ -7,4 +7,8 @@ class TaskException(Exception):
 
 
 class StopExecution(Exception):
+    pass
+
+
+class RunDateTimeException(Exception):
     pass

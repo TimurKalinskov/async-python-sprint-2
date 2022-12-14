@@ -2,8 +2,7 @@ import pickle
 import os
 import logging
 
-from threading import Thread
-from queue import Queue
+from multiprocessing import Process, Queue, Value
 from uuid import uuid4
 
 from job import Job
@@ -16,14 +15,20 @@ from exceptions import StopExecution
 class Scheduler:
     tasks_folder = './tasks/'
     statuses_file = 'statuses.txt'
+    waiting_tasks_file = 'waiting_tasks.txt'
     queue = Queue()
-    run_thread = None
+    run_process = None
+    max_tasks = 3
+    current_count_tasks = Value('i', 0)
 
     def __init__(self, pool_size=10):
         self.task_coroutine = self._run_task_coroutine()
         self.task_coroutine.send(None)
 
     def schedule(self, task: Job):
+        if not isinstance(task, Job):
+            print('This scheduler supports only Job instances')
+            return
         dependencies = task.dependencies
         task.uid = uuid4()
         with open(self.tasks_folder + str(task.uid), 'wb') as task_file:
@@ -31,20 +36,30 @@ class Scheduler:
             for dt in dependencies:
                 dt.uid = uuid4()
                 pickle.dump(dt, task_file)
-        with open(self.statuses_file, 'a') as status_file: # перезапись файла!!!
+        if self.current_count_tasks.value >= self.max_tasks:
+            with open(self.waiting_tasks_file, 'a') as waiting_file:
+                waiting_file.write(
+                    f'{task.uid};{task.start_at};{task.func.__name__};'
+                    f'{task.dependencies};wait\n'
+                )
+                return
+        self.current_count_tasks.value += 1
+        with open(self.statuses_file, 'a') as status_file:
             status_file.write(
-                f'{task.uid};{task.start_at};{task.tries};'
+                f'{task.uid};{task.start_at};{task.func.__name__};'
                 f'{task.dependencies};wait\n'
             )
 
     def start(self):
-        self.run_thread = Thread(target=self.run, args=())
-        self.run_thread.start()
+        self.run_process = Process(target=self.run, args=(self.queue,))
+        self.run_process.start()
 
-    def run(self, task_uid=None):
+    def run(self, queue, task_uid=None):
+        self.queue = queue
         if task_uid:
-            self.task_coroutine.send(task_uid)
-            return None
+            status = self.task_coroutine.send(task_uid)
+            self._update_single_task_status(task_uid, status)
+            return status
         run_coroutine = self._run_coroutine()
         while True:
             # logging.error('run')
@@ -55,13 +70,10 @@ class Scheduler:
                 except StopIteration:
                     return
 
-    def restart(self):
-        pass
-
     def stop(self):
         self.queue.put(StopExecution)
         print('Завершение выполнения задач...')
-        self.run_thread.join()
+        self.run_process.join()
 
     def _delete_outdated_task(self, task_uid):
         for file in os.listdir(self.tasks_folder):
@@ -80,7 +92,34 @@ class Scheduler:
                 if task[4] not in ('finished', 'fail'):
                     file.write(';'.join(task) + '\n')
                 else:
+                    waiting_task = self._add_to_queue()
+                    if waiting_task.strip():
+                        file.write(waiting_task)
+                    else:
+                        self.current_count_tasks.value -= 1
                     self._delete_outdated_task(task[0])
+
+    def _update_single_task_status(self, task_uid, status=None):
+        with open(self.statuses_file, 'r') as status_file:
+            all_task_statuses = status_file.readlines()
+        if status:
+            status = status[1]
+        with open(self.statuses_file, 'w') as status_file:
+            for task in all_task_statuses:
+                if task_uid in task:
+                    if status in (1, None):
+                        self._delete_outdated_task(task_uid)
+                        continue
+                status_file.write(task)
+
+    def _add_to_queue(self):
+        with open(self.waiting_tasks_file, 'r+') as waiting_file:
+            waiting_task = waiting_file.readline()
+            data = waiting_file.read()
+            waiting_file.seek(0)
+            waiting_file.write(data)
+            waiting_file.truncate()
+            return waiting_task
 
     def _run_coroutine(self):
         while True:
@@ -91,7 +130,6 @@ class Scheduler:
             finally:
                 # logging.error('finally')
                 actual_tasks = []
-                outdated_tasks_indexes = []
                 with open(self.statuses_file, 'r') as status_file:
                     for task in status_file.readlines():
                         actual_tasks.append(task.strip().split(';'))
@@ -109,6 +147,8 @@ class Scheduler:
     def _run_task_coroutine(self):
         while True:
             task = (yield)
+            if not task:
+                yield None
             with open(self.tasks_folder + task, 'rb') as task_file:
                 job = pickle.load(task_file)
                 yield job.run()

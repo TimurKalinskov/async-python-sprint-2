@@ -29,6 +29,8 @@ j3 = Job(s, [5, 3], max_working_time=3, tries=3, dependencies=[j2],
          start_at='11-12-2022 15:10:00')
 j4 = Job(d, [10, 3], start_at='12-10-2022 15:10:00')
 j5 = Job(s, [10, 10])
+j6 = Job(s, [5, 3], max_working_time=2, tries=3, dependencies=[j2])
+j7 = Job(s, [5, 3], max_working_time=2, tries=3)
 
 # sh.schedule(j2)
 # sh.schedule(j3)

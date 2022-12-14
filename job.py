@@ -1,12 +1,8 @@
 from datetime import datetime
-import time
 import signal
 
-from exceptions import WorkingTimeException
-
-
-def handler_alarm(signum, frame):
-    raise WorkingTimeException
+from exceptions import WorkingTimeoutException, RunDateTimeException
+from utils import handler_alarm
 
 
 signal.signal(signal.SIGALRM, handler_alarm)
@@ -33,15 +29,14 @@ class Job:
             try:
                 self.stop()
                 if self.dependencies:
-                    self._run_dependencies()
+                    self.kwargs = dict(self.kwargs, **self._run_dependencies())
                 result = self.func(*self.args, **self.kwargs)
-                print(self.uid, self.func.__name__, result)
                 return result, 1
-            except WorkingTimeException:
+            except WorkingTimeoutException:
                 print(f'{self.func.__name__}: Execution time exceeded')
-
-    def pause(self):
-        time.sleep(self._get_pause_second())
+            except RunDateTimeException:
+                print(f'One of the dependencies cannot be run yet')
+                signal.alarm(0)
 
     def stop(self):
         if self.max_working_time > 0:
@@ -56,7 +51,12 @@ class Job:
         return True
 
     def _run_dependencies(self):
+        results = {}
         for job in self.dependencies:
             result = job.run()
-            if not result:
-                raise WorkingTimeException
+            if result is None:
+                raise WorkingTimeoutException
+            elif result[1] == 0:
+                raise RunDateTimeException
+            results[job.func.__name__] = result[1]
+        return results
