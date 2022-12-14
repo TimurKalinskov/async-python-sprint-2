@@ -53,6 +53,7 @@ class Job:
                 self.start_at, '%d-%m-%Y %H:%M:%S'
             )
             return datetime.now() > datetime_object
+        return True
 
     def _run_dependencies(self):
         for job in self.dependencies:
