@@ -176,3 +176,6 @@ class Scheduler:
         if not os.path.exists(self.waiting_tasks_file):
             with open(self.waiting_tasks_file, 'w'):
                 pass
+        if not os.path.exists(self.statuses_file):
+            with open(self.statuses_file, 'w'):
+                pass
