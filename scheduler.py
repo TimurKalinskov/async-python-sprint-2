@@ -3,6 +3,7 @@ import pickle
 import os
 
 from multiprocessing import Process, Queue, Value
+from queue import Empty
 from uuid import uuid4
 from typing import Any, Coroutine
 
@@ -68,6 +69,7 @@ class Scheduler:
         while True:
             run_coroutine.send(None)
             if not self.queue.empty():
+                self.__clear_queue()
                 try:
                     run_coroutine.throw(StopExecution)
                 except StopIteration:
@@ -76,7 +78,7 @@ class Scheduler:
     def stop(self) -> None:
         self.queue.put(StopExecution)
         print('Завершение выполнения задач...')
-        self.run_process.join()
+        self.run_process.join(10)
         scheduler_logger.info('Stop scheduler execution')
 
     def _delete_outdated_task(self, task_uid: str) -> None:
@@ -89,7 +91,7 @@ class Scheduler:
                     scheduler_logger.error(
                         f'Error while deleting task {task_uid}: {ex}'
                     )
-        scheduler_logger.warning(f'Cannot find task {task_uid} for deleting')
+        scheduler_logger.error(f'Cannot find task {task_uid} for deleting')
 
     def _refresh_statuses(self, tasks: list) -> None:
         task_ids = [task[0] for task in tasks]
@@ -179,3 +181,10 @@ class Scheduler:
         if not os.path.exists(self.statuses_file):
             with open(self.statuses_file, 'w'):
                 pass
+
+    def __clear_queue(self):
+        try:
+            while True:
+                self.queue.get_nowait()
+        except Empty:
+            pass

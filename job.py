@@ -2,6 +2,7 @@ import signal
 
 from datetime import datetime
 from typing import Any
+from collections.abc import Callable
 
 from exceptions import (
     WorkingTimeoutException, RunDateTimeException, TaskErrorException
@@ -14,9 +15,11 @@ signal.signal(signal.SIGALRM, handler_alarm)
 
 class Job:
     def __init__(
-            self, func, args: list | None = None, kwargs: dict | None = None,
-            start_at: str = '', max_working_time: int = 0, tries: int = 1,
-            dependencies: list['Job'] | None = None
+            self, func: Callable, args: list | None = None,
+            kwargs: dict | None = None, start_at: str = '',
+            max_working_time: int = 0, tries: int = 1,
+            dependencies: list['Job'] | None = None,
+            return_arg: str | None = None
     ) -> None:
         self.func = func
         self.args = args if args else []
@@ -25,17 +28,17 @@ class Job:
         self.max_working_time = max_working_time
         self.tries = tries
         self.dependencies = dependencies if dependencies else []
+        self.return_arg = return_arg
         self.uid = ''
 
     def run(self) -> tuple[Any | None, int] | None:
         if not self._check_start_time():
-            task_logger.info('Task cannot be run yet')
             return None, 0
         for _ in range(self.tries):
             try:
                 self.stop()
                 if self.dependencies:
-                    self.kwargs = dict(self.kwargs, **self._run_dependencies())
+                    self.kwargs.update(**self._run_dependencies())
                 result = self.func(*self.args, **self.kwargs)
                 task_logger.info(
                     f'Task {self.uid}, function {self.func.__name__} finished'
@@ -46,7 +49,7 @@ class Job:
                     f'{self.func.__name__}: Execution time exceeded'
                 )
             except RunDateTimeException:
-                task_logger.info(msg='One of the dependencies cannot be run yet')
+                task_logger.info('One of the dependencies cannot be run yet')
             except TaskErrorException as er:
                 task_logger.error(str(er))
             except Exception as er:
@@ -72,6 +75,7 @@ class Job:
     def _run_dependencies(self) -> dict:
         results = {}
         for i, job in enumerate(self.dependencies):
+            job.kwargs.update(**results)
             result = job.run()
             if result is None:
                 raise TaskErrorException(
@@ -80,5 +84,8 @@ class Job:
                 )
             elif result[1] == 0:
                 raise RunDateTimeException
-            results[(i, job.func.__name__)] = result[1]
+            elif result[1] == 1 and job.return_arg:
+                results = {job.return_arg: result[0]}
+            else:
+                results = {}
         return results
