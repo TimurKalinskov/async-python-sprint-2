@@ -1,12 +1,12 @@
 import pickle
 import os
-import logging
 
 from multiprocessing import Process, Queue, Value
 from uuid import uuid4
 
 from job import Job
 from exceptions import StopExecution
+from utils import scheduler_logger
 
 
 # logging.basicConfig(level=logging.DEBUG)

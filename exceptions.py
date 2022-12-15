@@ -2,7 +2,7 @@ class WorkingTimeoutException(Exception):
     pass
 
 
-class TaskException(Exception):
+class TaskErrorException(Exception):
     pass
 
 
