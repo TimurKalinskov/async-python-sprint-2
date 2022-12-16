@@ -13,15 +13,17 @@ from utils import scheduler_logger
 
 
 class Scheduler:
-    tasks_folder = './tasks/'
-    statuses_file = 'statuses.txt'
-    waiting_tasks_file = 'waiting_tasks.txt'
     queue = Queue()
     run_process = None
     current_count_tasks = Value('i', 0)
 
-    def __init__(self, pool_size=10) -> None:
+    def __init__(self, pool_size=10, tasks_folder: str = './tasks/',
+                 statuses_file: str = 'statuses.txt',
+                 waiting_tasks_file: str = 'waiting_tasks.txt') -> None:
         self.pool_size = pool_size
+        self.tasks_folder = tasks_folder
+        self.statuses_file = statuses_file
+        self.waiting_tasks_file = waiting_tasks_file
         self.task_coroutine = self._run_task_coroutine()
         self.task_coroutine.send(None)
         self.__create_necessary_dependencies()
@@ -38,7 +40,7 @@ class Scheduler:
             for dt in dependencies:
                 dt.uid = uuid4()
                 pickle.dump(dt, task_file)
-        if self.current_count_tasks.value >= self.pool_size:
+        if self.current_count_tasks.value > self.pool_size:
             with open(self.waiting_tasks_file, 'a') as waiting_file:
                 waiting_file.write(
                     f'{task.uid};{task.start_at};{task.func.__name__};'

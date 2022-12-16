@@ -29,11 +29,12 @@ def create_directory_with_files(path: str) -> None:
 
 
 def delete_directory_with_files(path: str) -> None:
-    for file_name in os.listdir(path):
-        file = path + file_name
-        if os.path.isfile(file):
-            os.remove(file)
-    delete_empty_directory(path)
+    if os.path.exists(path):
+        for file_name in os.listdir(path):
+            file = path + file_name
+            if os.path.isfile(file):
+                os.remove(file)
+        delete_empty_directory(path)
 
 
 def rename_file(old_name: str, new_name: str) -> None:

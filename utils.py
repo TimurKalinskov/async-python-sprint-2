@@ -1,4 +1,5 @@
 import logging
+import uuid
 
 from exceptions import WorkingTimeoutException
 
@@ -19,3 +20,11 @@ def config_logger(name, log_file, level=logging.INFO):
 
 task_logger = config_logger('task_logger', 'tasks.log')
 scheduler_logger = config_logger('scheduler_logger', 'scheduler.log')
+
+
+def is_valid_uuid(value):
+    try:
+        uuid.UUID(str(value))
+        return True
+    except ValueError:
+        return False
