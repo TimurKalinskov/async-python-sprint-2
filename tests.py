@@ -26,7 +26,7 @@ class JobTest(unittest.TestCase):
         )
         self.assertTrue(os.path.exists(self.directory_name))
 
-    def test_too_long_task(self):
+    def test_too_long_task(self) -> None:
         job = Job(
             func=files.long_execution_foo,
             max_working_time=3
@@ -38,7 +38,7 @@ class JobTest(unittest.TestCase):
             result
         )
 
-    def test_planned_task(self):
+    def test_planned_task(self) -> None:
         job = Job(
             func=requests.get_data,
             start_at='20-12-2099 15:10:00'
@@ -50,10 +50,10 @@ class JobTest(unittest.TestCase):
             result
         )
 
-    def test_task_with_tries(self):
+    def test_task_with_tries(self) -> None:
         step = 0
 
-        def next_step():
+        def next_step() -> str:
             nonlocal step
             step += 1
             if step < 3:
@@ -70,8 +70,8 @@ class JobTest(unittest.TestCase):
             result
         )
 
-    def test_task_with_dependencies(self):
-        def get_example_data():
+    def test_task_with_dependencies(self) -> None:
+        def get_example_data() -> list[dict]:
             data = [
                 {
                     'name': 'test 1'
@@ -116,7 +116,7 @@ class SchedulerTest(unittest.TestCase):
         if os.path.exists(self.waiting_tasks_file):
             os.remove(self.waiting_tasks_file)
 
-    def test_schedule_task(self):
+    def test_schedule_task(self) -> None:
         sh = Scheduler(
             pool_size=2,
             tasks_folder=self.tasks_folder,
@@ -145,7 +145,7 @@ class SchedulerTest(unittest.TestCase):
         self.assertEqual(len(waiting), 1)
         self.assertTrue('error_func' in waiting[0])
 
-    def test_run_scheduler(self):
+    def test_run_scheduler(self) -> None:
         sh = Scheduler(
             tasks_folder=self.tasks_folder,
             statuses_file=self.statuses_file,
@@ -189,6 +189,20 @@ class SchedulerTest(unittest.TestCase):
         self.assertTrue(is_valid_uuid(get_data_task[0]))
         self.assertEqual(get_data_task[2], 'get_data')
         self.assertEqual(get_data_task[4], 'wait')
+
+    def test_run_single_task(self) -> None:
+        sh = Scheduler(
+            tasks_folder=self.tasks_folder,
+            statuses_file=self.statuses_file,
+            waiting_tasks_file=self.waiting_tasks_file
+        )
+        job = Job(func=requests.example_str_foo)
+        sh.schedule(job)
+        uid = ''
+        for file_name in os.listdir(self.tasks_folder):
+            uid = file_name
+        result = sh.run(uid)
+        self.assertEqual(result, ('Test result data', 1))
 
 
 if __name__ == "__main__":

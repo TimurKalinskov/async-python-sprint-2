@@ -15,7 +15,6 @@ from utils import scheduler_logger
 class Scheduler:
     queue = Queue()
     run_process = None
-    current_count_tasks = Value('i', 0)
 
     def __init__(self, pool_size=10, tasks_folder: str = './tasks/',
                  statuses_file: str = 'statuses.txt',
@@ -26,6 +25,7 @@ class Scheduler:
         self.waiting_tasks_file = waiting_tasks_file
         self.task_coroutine = self._run_task_coroutine()
         self.task_coroutine.send(None)
+        self.current_count_tasks = Value('i', 0)
         self.__create_necessary_dependencies()
 
     def schedule(self, task: Job) -> None:
@@ -40,7 +40,8 @@ class Scheduler:
             for dt in dependencies:
                 dt.uid = uuid4()
                 pickle.dump(dt, task_file)
-        if self.current_count_tasks.value > self.pool_size:
+
+        if self.current_count_tasks.value >= self.pool_size:
             with open(self.waiting_tasks_file, 'a') as waiting_file:
                 waiting_file.write(
                     f'{task.uid};{task.start_at};{task.func.__name__};'
@@ -55,7 +56,7 @@ class Scheduler:
             )
 
     def start(self) -> None:
-        print('Запуск планировщика задач')
+        print('Start scheduler')
         self.run_process = Process(target=self.run, args=())
         self.run_process.start()
 
@@ -79,7 +80,7 @@ class Scheduler:
 
     def stop(self) -> None:
         self.queue.put(StopExecution)
-        print('Завершение выполнения задач...')
+        print('Completion of tasks execution...')
         self.run_process.join(10)
         scheduler_logger.info('Stop scheduler execution')
 

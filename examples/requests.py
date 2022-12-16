@@ -22,3 +22,6 @@ def get_user_names(users: list[dict]) -> list[str]:
     user_names = [user['name'] + '\n' for user in users]
     return user_names
 
+
+def example_str_foo() -> str:
+    return 'Test result data'
