@@ -22,12 +22,12 @@ class Job:
             return_arg: str | None = None
     ) -> None:
         self.func = func
-        self.args = args if args else []
-        self.kwargs = kwargs if kwargs else {}
+        self.args = args or []
+        self.kwargs = kwargs or {}
         self.start_at = start_at
         self.max_working_time = max_working_time
         self.tries = tries
-        self.dependencies = dependencies if dependencies else []
+        self.dependencies = dependencies or []
         self.return_arg = return_arg
         self.uid = ''
 
