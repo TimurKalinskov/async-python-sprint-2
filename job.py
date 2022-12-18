@@ -59,6 +59,7 @@ class Job:
                 )
             finally:
                 signal.alarm(0)
+        return None
 
     def stop(self) -> None:
         if self.max_working_time > 0:
@@ -73,7 +74,7 @@ class Job:
         return True
 
     def _run_dependencies(self) -> dict:
-        results = {}
+        results: dict = {}
         for i, job in enumerate(self.dependencies):
             job.kwargs.update(**results)
             result = job.run()
